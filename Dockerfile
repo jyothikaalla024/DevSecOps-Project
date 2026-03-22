@@ -8,17 +8,17 @@ RUN yarn install
 
 COPY . .
 
-# ✅ FIX: Match Jenkins build arg name
+# ✅ API KEY FROM JENKINS
 ARG TMDB_API_KEY
 
-# ✅ Vite requires VITE_ prefix
+# ✅ VITE ENV
 ENV VITE_APP_TMDB_V3_API_KEY=${TMDB_API_KEY}
 ENV VITE_APP_API_ENDPOINT_URL="https://api.themoviedb.org/3"
 
 RUN yarn build
 
 
-# ---------- PRODUCTION STAGE ----------
+# ---------- PRODUCTION ----------
 FROM nginx:stable-alpine
 
 WORKDIR /usr/share/nginx/html
