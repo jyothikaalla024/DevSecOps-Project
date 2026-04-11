@@ -14,13 +14,7 @@
   <p align="center">Home Page</p>
 </div>
 
-# **Youtube Video for step by step Demonstration!**
-[![Video Tutorial](https://img.youtube.com/vi/g8X5AoqCJHc/0.jpg)](https://youtu.be/g8X5AoqCJHc)
 
-
-## Susbcribe:
-[https://www.youtube.com/@cloudchamp?
-](https://www.youtube.com/@cloudchamp?sub_confirmation=1)
 
 # Deploy Netflix Clone on Cloud using Jenkins - DevSecOps Project!
 
@@ -204,7 +198,7 @@ pipeline {
         }
         stage('Checkout from Git') {
             steps {
-                git branch: 'main', url: 'https://github.com/N4si/DevSecOps-Project.git'
+                git branch: 'main', url: 'https://github.com/jyothikaalla024/DevSecOps-Project.git'
             }
         }
         stage("Sonarqube Analysis") {
@@ -277,80 +271,96 @@ Now, you have installed the Dependency-Check plugin, configured the tool, and ad
 
 ```groovy
 
-pipeline{
+pipeline {
     agent any
-    tools{
-        jdk 'jdk17'
+
+    tools {
         nodejs 'node16'
+        jdk 'jdk17'
     }
+
     environment {
-        SCANNER_HOME=tool 'sonar-scanner'
+        SCANNER_HOME = tool 'sonar-scanner'
     }
+
     stages {
-        stage('clean workspace'){
-            steps{
+
+        stage('Clean Workspace') {
+            steps {
                 cleanWs()
             }
         }
-        stage('Checkout from Git'){
-            steps{
-                git branch: 'main', url: 'https://github.com/N4si/DevSecOps-Project.git'
+
+        stage('Checkout Code') {
+            steps {
+                git branch: 'main', url: 'https://github.com/jyothikaalla024/DevSecOps-Project.git'
             }
         }
-        stage("Sonarqube Analysis "){
-            steps{
+
+        stage('SonarQube Analysis') {
+            steps {
                 withSonarQubeEnv('sonar-server') {
-                    sh ''' $SCANNER_HOME/bin/sonar-scanner -Dsonar.projectName=Netflix \
-                    -Dsonar.projectKey=Netflix '''
+                    sh """
+                    ${SCANNER_HOME}/bin/sonar-scanner \
+                    -Dsonar.projectName=Netflix \
+                    -Dsonar.projectKey=Netflix \
+                    -Dsonar.sources=. \
+                    -Dsonar.exclusions=**/node_modules/**,**/test/**,**/coverage/**
+                    """
                 }
             }
         }
-        stage("quality gate"){
-           steps {
-                script {
-                    waitForQualityGate abortPipeline: false, credentialsId: 'Sonar-token' 
+
+        stage('Quality Gate') {
+            steps {
+                timeout(time: 2, unit: 'MINUTES') {
+                    waitForQualityGate abortPipeline: false
                 }
-            } 
+            }
         }
+
         stage('Install Dependencies') {
             steps {
-                sh "npm install"
+                sh 'npm install'
             }
         }
-        stage('OWASP FS SCAN') {
+
+        stage('Trivy FS Scan') {
             steps {
-                dependencyCheck additionalArguments: '--scan ./ --disableYarnAudit --disableNodeAudit', odcInstallation: 'DP-Check'
-                dependencyCheckPublisher pattern: '**/dependency-check-report.xml'
+                sh 'trivy fs --scanners vuln .'
             }
         }
-        stage('TRIVY FS SCAN') {
+
+        stage('Docker Build & Push') {
             steps {
-                sh "trivy fs . > trivyfs.txt"
-            }
-        }
-        stage("Docker Build & Push"){
-            steps{
-                script{
-                   withDockerRegistry(credentialsId: 'docker', toolName: 'docker'){   
-                       sh "docker build --build-arg TMDB_V3_API_KEY=<yourapikey> -t netflix ."
-                       sh "docker tag netflix nasi101/netflix:latest "
-                       sh "docker push nasi101/netflix:latest "
+                script {
+                    withDockerRegistry([credentialsId: 'docker-cred', url: 'https://index.docker.io/v1/']) {
+                        sh 'docker build -t jyothikkaalla24/netflix:latest .'
+                        sh 'docker push jyothikkaalla24/netflix:latest'
                     }
                 }
             }
         }
-        stage("TRIVY"){
-            steps{
-                sh "trivy image nasi101/netflix:latest > trivyimage.txt" 
-            }
-        }
-        stage('Deploy to container'){
-            steps{
-                sh 'docker run -d --name netflix -p 8081:80 nasi101/netflix:latest'
+
+        stage('Deploy Container') {
+            steps {
+                sh 'docker run -d -p 3000:3000 jyothikkaalla24/netflix:latest'
             }
         }
     }
+
+    post {
+        success {
+            echo '✅ Pipeline SUCCESS'
+        }
+        failure {
+            echo '❌ Pipeline FAILED'
+        }
+    }
 }
+
+
+
 
 
 If you get docker login failed errorr
